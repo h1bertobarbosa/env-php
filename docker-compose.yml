@@ -1,0 +1,107 @@
+version: '3'
+
+services:
+  # mysql:
+  #   image: mysql:5.7.27
+  #   container_name: dev-env-mysql
+  #   ports:
+  #     - 3306:3306
+  #   expose:
+  #     - "3306"
+  #   volumes:
+  #     - mysql-data:/var/lib/mysql
+  #   environment:
+  #     - MYSQL_DATABASE=dev-env
+  #     - MYSQL_PASSWORD=dev-env
+  #     - MYSQL_ROOT_PASSWORD=dev-env
+  #   networks:
+  #     intranet:
+  #       ipv4_address: 200.4.75.7
+        
+  pgsql:
+    image: postgres:12.3-alpine
+    container_name: dev-env-pgsql
+    ports:
+      - 5432:5432
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=123456
+    networks:
+      intranet:
+        ipv4_address: 200.4.75.10
+
+  php73:
+    build: PHP73fpm
+    user: www-data
+    hostname: "php73dev-env"
+    working_dir: /var/www
+    container_name: php73
+    extra_hosts:
+      - pgsql-server:200.4.75.10
+      - redis-server:200.4.75.5
+    volumes:
+      - $PWD/PHP73fpm/php.ini:/usr/local/etc/php/php.ini:ro
+      - $PWD/PHP73fpm/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+      - $PWD/app:/var/www:rw
+    networks:
+      intranet:
+        ipv4_address: 200.4.75.4
+
+  nginx:
+    image: nginx:1.17.3
+    hostname: php-env-nginx
+    container_name: php-env-nginx
+    ports:
+      - "80:80"
+      - "81:81"
+    extra_hosts:
+      - "php73:200.4.75.4"
+    volumes:
+      - $PWD/sites:/etc/nginx/conf.d:ro
+      - $PWD/Nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - $PWD/app:/var/www:rw
+    networks:
+      intranet:
+        ipv4_address: 200.4.75.3
+        
+  redis:
+    image: redis:5.0.8-alpine
+    hostname: php-env-redis
+    expose:
+      - "6379"
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass 15bc42b4fc0935e8f4de9b23365335a5c61ec8e86120763
+    networks:
+      intranet:
+        ipv4_address: 200.4.75.5
+
+  # mongodb:
+  #   image: mongo:4.2.6-bionic
+  #   hostname: simple-mongo
+  #   restart: always
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: root123
+  #   volumes:
+  #     - mongo-data:/data/db
+  #   networks:
+  #     intranet:
+  #       ipv4_address: 200.4.75.6        
+         
+
+networks:
+  intranet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 200.4.75.0/24
+      
+volumes:
+  mongo-data:
+  pg-data:
+  mysql-data:
